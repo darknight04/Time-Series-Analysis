@@ -1,0 +1,242 @@
+---
+title: "Time Series Analysis: Utah"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Including Libraries
+```{r}
+library(xts)
+library(tsbox)
+```
+
+# Reading the dataset
+```{r}
+weather <-read.csv("/Users/riya/Desktop/3144152.csv", as.is=T)
+head(weather)
+```
+# Preprocessing the data
+
+```{r}
+weather[['DATE']] <- as.POSIXct(weather[['DATE']],format = "%Y-%m-%d")
+```
+
+
+```{r}
+total_snow <- sum(weather$SNOW, na.rm=TRUE)
+total_fog <- sum(weather$WT01, na.rm=TRUE)
+total_thunder <- sum(weather$WT03, na.rm=TRUE)
+total_icepellets <- sum(weather$WT04, na.rm=TRUE)
+total_hail <- sum(weather$WT05, na.rm=TRUE)
+total_glaze <- sum(weather$WT06, na.rm=TRUE)
+total_damaging_winds <- sum(weather$WT11, na.rm=TRUE)
+```
+
+```{r}
+sum_weather= total_snow+ total_fog +total_thunder+total_icepellets+ total_hail+ total_glaze+ total_damaging_winds
+sum_weather
+```
+```{r}
+per_snow=(total_snow/ sum_weather)*100
+per_fog= (total_fog / sum_weather)*100
+per_thunder= (total_thunder / sum_weather)*100
+per_ice= (total_icepellets / sum_weather)*100
+per_hail= (total_hail / sum_weather)*100
+per_glaze= (total_glaze/ sum_weather)*100
+per_winds= (total_damaging_winds / sum_weather)*100
+
+```
+```{r}
+barplot(c(per_snow, per_fog, per_thunder, per_ice, per_hail, per_glaze, per_winds),
+main = "weather conditions",
+xlab = "conditions",
+ylab = "percent",
+names.arg = c("snow", "fog", "thunder", "icepellets", "hail", "glaze", "strong winds"),
+col = "red",
+horiz = FALSE)
+```
+
+```{r}
+range(weather$DATE) 
+```
+
+# Preprocsessing the time series
+#1.Creating time series ts2 of TMAX, TMIN, PRCP, SNOW
+#2.Filling Null Values
+#3.Start and end date window
+```{r}
+ts2 = xts(weather[,c("TMAX","TMIN","PRCP", "SNOW")], order.by=as.Date(weather$DATE))
+#weather_ts
+```
+```{r}
+ts2 = ts_xts(ts2)
+#ts2
+```
+```{r}
+ts2 = na.fill(ts2, "extend")
+
+ts2 = window(ts2, start=as.Date("1995-01-01"), end=as.Date("2005-12-31"))
+
+```
+
+```{r}
+ts_plot(ts2$SNOW, title="Snowfall")
+```
+```{r}
+ts_plot(ts2$TMAX)
+```
+
+
+
+
+```{r}
+plot(xts(ts2$TMAX),col="darkred", bty="n", las=1, fg=NA, ylim=c(-20, 120), ylab="Temperature (F)")
+
+grid(nx=NA, ny=NULL, lty=1, col="gray")
+
+legend("topright", fill=c("darkred", "navy"), cex=0.7,legend=c("TMAX", "TMIN"), bg="white")
+
+```
+
+```{r}
+barplot(ts2$PRCP, border=NA, col="darkgreen", ylim=c(0, 2),space=0, bty="n", las=1, fg=NA, ylab="Daily Rainfall (inches)")
+
+grid(nx=NA, ny=NULL, lty=1)
+
+```
+
+#Descriptive Stats
+
+```{r}
+summary(ts2)
+```
+# Reading with Minumum temperature
+```{r}
+ts2[ts2$TMIN == min(ts2$TMIN)]
+```
+# Reading with maximum temperature
+```{r}
+ts2[ts2$TMAX == max(ts2$TMAX)]
+```
+
+# Reading with maximum precipitation
+```{r}
+ts2[ts2$PRCP == max(ts2$PRCP)]
+```
+#seasonal Stats
+```{r}
+#Statistical summary of maximum temperature by months
+ts2$MONTH = format(index(ts2), "%m")
+
+months = split(as.numeric(ts2$TMAX), ts2$MONTH)
+
+sapply(months, summary)
+```
+```{r}
+#Statistical summary of minimum temperature by months
+months = split(as.numeric(ts2$TMIN), ts2$MONTH)
+
+sapply(months, summary)
+```
+```{r}
+#Normalizing and Decomposing Precipitation
+dat<- cumsum(rnorm(ts2$PRCP))
+x<-ts(dat)
+#stl(x, "periodic")
+xx<- ts(dat, frequency=12)
+decomp <-stl(xx, "periodic")
+```
+```{r}
+plot(decomp)
+```
+```{r}
+summary(decomp$time.series[,"trend"])
+```
+
+```{r}
+#Normalizing and decomposing temperature
+data_TMAX<- cumsum(rnorm(ts2$TMAX))
+xx_TMAX<- ts(data_TMAX, frequency=12)
+decomp_TMAX <-stl(xx_TMAX, "periodic")
+plot(decomp_TMAX)
+summary(decomp_TMAX$time.series[,"trend"])
+
+
+```
+
+
+
+
+#Aggregation
+```{r}
+#Aggregating Temperature
+monthly.tmax = period.apply(ts2$TMAX, INDEX = seq(1, nrow(ts2) - 1, 30.4375), FUN = mean)
+
+```
+
+```{r}
+data_tmax <-cumsum(rnorm(monthly.tmax))
+xx_tmax<-ts(monthly.tmax, frequency=12)
+```
+```{r}
+plot(ts_ts(xx_tmax),  col="darkred", ylim=c(20, 100), lwd=3, bty="n", las=1, fg=NA, ylab="TMAX (F)", main="Historical mean of Maximum temperatures")
+
+grid(nx=NA, ny=NULL, lty=1)
+```
+
+```{r}
+
+
+monthly.pmax = period.apply(ts2$PRCP, INDEX = seq(1, nrow(ts2) - 1, 30.4375), FUN = mean)
+
+```
+
+
+#Time series with frequency=12
+```{r}
+
+temperature.ts = ts(ts2$TMAX, start = c(1995, 01), end = c(2005, 12), frequency = 12)
+plot(temperature.ts, xlab = "Year", ylab="temperature", main="temperature time series")
+```
+
+#Autocorrelation
+
+```{r}
+temperature.ts
+lag.plot(temperature.ts, lags=12, do.lines=FALSE)
+```
+
+
+
+```{r}
+lag.plot(temperature.ts, lag = 12, do.lines = FALSE)
+acf(temperature.ts)
+```
+```{r}
+#Partial Autocorrelation Function
+pacf (temperature.ts, lag = 12 - 1, pl = TRUE)
+```
+
+
+```{r}
+#Dickey Fuller test
+# if p value > 0.05, the time series is not stationary
+# if p value < 0.05, time series is stationary
+#x <- rnorm(ts2)
+#adf.test(temperature.ts, alternative = "stationary")
+```
+
+
+
+
+
+
+
+
+
+
+
+
