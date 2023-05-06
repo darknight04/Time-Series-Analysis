@@ -19,5 +19,3 @@ The analysis shows that Utah's weather patterns have changed significantly over 
 
 
 
-
-Regenerate response
