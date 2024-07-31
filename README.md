@@ -1,4 +1,4 @@
-# Time-Series-Analysis
+# Utah Time-Series-Analysis
 Time Series Analysis of Weather in Utah, USA
 
 This repository contains code for conducting time series analysis of weather data in Utah. The analysis is performed using the R programming language and several R packages.
